@@ -333,3 +333,27 @@ The most reliable validation sequence was:
 8. List and hash the final artifacts, confirm patches apply cleanly, and verify the package contains no temporary XML, logs, build output, or unrelated files.
 
 Review feedback must be reconciled against the current patch before making changes. In this case, preserving the already clean production patch while editing only the test patch avoided reintroducing earlier memory-selection and third-party-decoder regressions. A narrow artifact edit is valuable only after proving that description, tests, and solution remain aligned across every invocation path.
+
+## 15. Resolve and Externalize DICOM JSON Bulk Data precheck experience
+
+This task exposed how a package can be behaviorally strong and still fail inexpensive structural checks. The first verifier failure was not a Rust failure at all: eleven feature tests ran in the wrapper-driven checkout without `solution.patch`, but the runner did not classify them in the fail-to-pass set or skip them. Every declared testcase must appear in exactly the intended set, and the clean test-only state must be inspected through the generated JUnit rather than inferred from a successful direct `cargo test` command.
+
+The description alignment check then showed that conceptual API prose was insufficient for compile-time tests. If tests construct public enum variants, access struct fields, implement traits, or call exact accessors, those details are part of the public contract and must be stated. For the DICOM task this included RPITIT provider methods, the exact `Primitive` and `PixelSequence` variant names, public request fields, `BulkDataRequest: Clone`, the generic `BulkDataError<E>` accessors, awaitable entry points, and the existing `AttributeSelector` representation.
+
+That correction created a separate description-quality failure when it was introduced under a generated-looking “Test assumptions” heading. The content was necessary, but the presentation was not. Integrate exact public-interface requirements into normal maintainer prose with a sentence such as “Expose the following public surface,” and avoid headings that make the problem read like verifier documentation.
+
+The Docker failure was similarly mechanical and preventable. Embedding a gzipped fixture as a base64 string and decoding it in a `RUN` command made offline tests reproducible, but violated the security rule against encoded or obfuscated commands. Binary fixtures should be committed as ordinary build-context files and copied into the image, or fetched transparently during `docker build` from a stable URL with a visible checksum. Network access at build time does not justify network access at test time, and a cache workaround must still be readable to a reviewer.
+
+The practical precheck sequence for this task became:
+
+1. Verify that only the intended artifact changed; when asked for a test-only revision, hash `README.md`, `solution.patch`, and `Dockerfile` before and after.
+2. Apply `test.patch` to a fresh checkout and run both wrapper modes. Base must pass, while every named new testcase must be represented as failed, errored, or skipped without the solution.
+3. Apply `solution.patch` after the test patch and repeat both modes. Inspect the XML counts and bodies, not just exit codes.
+4. Run formatter, warning-denied Clippy, documentation, and the repository's normal build surface from the reconstructed tree.
+5. Build the exact Docker context without running tests in the Dockerfile, then execute the wrapper with networking disabled.
+6. Scan added comments, headings, filenames, commands, and fixture handling for platform-oriented language, hidden-test scaffolding, encoded payloads, and accidental interface assumptions.
+7. Recreate the archive from the final files, test the archive, and compare archived hashes with the working copies.
+
+Build duration also needs diagnosis rather than cancellation followed by guesswork. `cargo build --workspace --all-targets` can be expensive in a large Rust workspace, and a cold dependency cache or broad target selection can make the Docker build appear stuck. Keep the required build gate, use the pinned lockfile and cache-friendly layer order where the package rules permit it, and report progress. Do not replace a slow legitimate build with test execution during image construction or with opaque fixture reconstruction.
+
+Finally, reconcile each new review against the current artifact. The DICOM package went through fairness, completeness, solution-quality, description, and Docker feedback at different revisions. Fixing an old quoted line after it had already changed risked regressing checks that were green. Maintain a small ledger of resolved, remaining, regressed, and new findings, then make the narrowest artifact change that addresses the current evidence.

@@ -353,3 +353,43 @@ The strongest tests used distinguishable public payloads, not only heading count
 Recovery needs both positive and negative matrices. Test a valid older occurrence followed by malformed data, malformed data followed by a valid occurrence, several valid occurrences, and a type for which every preferred-format occurrence is malformed. For system information, combine a corrupt latest entry with a valid earlier one, then decode both built-in dependent streams and a custom public decoder that shares the SystemInfoStream numeric type. This catches global stream-type special cases without prescribing the reader's internal storage.
 
 Finally, inspect every passing agent rather than treating a green suite as proof. The review history repeatedly found solutions that implemented nearly all core behavior but exploited uncovered manual branches or compatibility seams unintentionally. Those patches are the best mutation corpus: turn each realistic shortcut into a public, deterministic assertion, rerun the full fail-to-pass matrix, and keep the reference solution under the same regression and production-quality gates.
+
+## 16. Resolve and Externalize DICOM JSON Bulk Data test-quality experience
+
+The most valuable lesson from this task was that every added assertion needs two reviews: one for the incomplete implementation it rejects and one for the valid implementation it might reject. Several apparently helpful tests failed the second review.
+
+A semantic compatibility error after a resolver successfully returned `PixelSequence` was initially required to retain the source URI. The description promised URI context for resolution failures, but the provider had succeeded; a selector-only data error was also reasonable. The fair correction was to stop asserting the URI for that scenario unless the description explicitly broadened the contract.
+
+A whitespace-only `BulkDataURI` case had the same ambiguity. “Blank” can mean empty or empty after trimming, while the surrounding contract also used “non-empty.” Repository code provided no trimming convention. Either state that whitespace-only URIs are invalid and keep the test, or test only the unambiguous empty string. Do not let a reviewer recommendation silently redefine the word after agent calibration.
+
+An encapsulated-pixel assertion used `assert_eq!` directly on `BulkDataValue`. That checked the right data but also required public `Debug` and `PartialEq` implementations that the task never promised. Pattern matching `BulkDataValue::PixelSequence` and comparing its offset table and fragments tests the behavior without adding accidental trait bounds. Assertion syntax is part of fairness when compilation itself is observable.
+
+Another test rejected `PixelSequence` values stored under a non-Pixel-Data tag or a disallowed output VR before calling the writer. The input paragraph explicitly restricted resolver results, but the output contract only required encapsulated Pixel Data to be externalized and otherwise preserve legacy behavior. Because the repository's legacy serializer offered a reasonable alternate outcome, the output-side rejection test was removed rather than justified from the reference implementation.
+
+After those fairness fixes, passing candidates became the best source of coverage mutations. One candidate reimplemented ordinary primitive serialization and emitted `"Value": []` for empty PN or US values. It passed because empty-value parity was exercised only for OB. A fair no-bulk regression should compare the bulk-aware and legacy output for empty ordinary primitives through the public entry points. That closes a real false positive using the description's explicit JSON-spelling promise.
+
+The completeness audit also identified four important public-contract gaps:
+
+- malformed ordinary input at a known tag could return an error with no selector;
+- ordinary output conversion failure at a known tag could likewise lose its selector;
+- primitive request VR and output VR could agree with each other while both were incorrectly rewritten to OB;
+- output wrappers other than `to_value_with_bulk_data` could be hard-coded to the default dictionary.
+
+The corresponding tests should assert the known tag through `selector()`, compare request and JSON VR independently with the source element, and compile every output wrapper with a non-default dictionary. These checks are fair because they exercise stated public behavior rather than a private traversal or serializer design.
+
+Coverage additions should remain proportionate. A single test can group closely related assertions when that keeps fail-to-pass classification stable, but it must provide assertion context so failures remain diagnosable. Avoid stacking unrelated compile-time omissions into one gate that prevents all behavioral evidence. Replay the reference, every legitimate passing candidate, and targeted mutants after strengthening the suite; this proves the new assertions close the intended holes without unexpectedly changing the calibrated difficulty.
+
+For serializer and resolver work, a useful mutation matrix is:
+
+| Mutant | Public defect to observe |
+| --- | --- |
+| Validate only `uri.is_empty()` | Accepts whitespace if the description explicitly defines it as blank. |
+| Parse or serialize the whole object and wrap one generic JSON error | Loses the selector of a known malformed element. |
+| Normalize every primitive request VR to OB | Changes provider context and emitted JSON for OD, OF, OL, OV, OW, and UN. |
+| Delegate typed empty bytes to legacy `InlineBinary` | Emits an empty field instead of the promised VR-only bulk-aware form. |
+| Rebuild all ordinary primitives in bulk mode | Changes empty and special ordinary JSON spelling. |
+| Implement only the value entry point generically | Rejects custom dictionaries through string, slice, reader, vector, or writer wrappers. |
+| Flatten encapsulated Pixel Data into primitive bytes | Loses the basic offset table or fragment boundaries. |
+| Continue after a provider failure | Makes later calls despite the fail-fast contract. |
+
+The task reached its strongest form when tests independently proved public API shape, provider-visible context, recursive ordering, byte and fragment fidelity, exact no-bulk compatibility, and failure context—while avoiding unstated URI policies, incidental derives, and reference-specific malformed-output behavior.

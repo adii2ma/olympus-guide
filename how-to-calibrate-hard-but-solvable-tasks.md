@@ -315,3 +315,26 @@ The raw pass rate still needed careful interpretation. In one cohort, five of te
 The useful calibration lesson is to measure both breadth and concentration. Storage, iteration, fallback, classification, and CLI changes created distributed engineering work, but a single late assertion should not be credited as the whole source of difficulty. Read each failed patch and JUnit body, record how much of the behavior it implemented, and identify whether repeated failures share one root cause. Keep a subtle case when it protects an explicit public compatibility promise, but make sure the rest of the suite independently rejects plausible partial designs.
 
 Difficulty also changed when coverage was added. Testing only representative output branches made the task easier than the description because manual dispatch branches could remain singular. Adding duplicate `all_streams` coverage, independent CLI groups, multiple valid Memory64 streams, malformed-only Memory64 fallback, and mixed non-empty/empty unused records aligned measured difficulty with the actual contract rather than adding unrelated traps. This is the preferred way to harden an under-discriminating task: close natural invocation-path gaps instead of inventing obscure behavior.
+
+## 16. Resolve and Externalize DICOM JSON Bulk Data calibration experience
+
+This task looked difficult for the right reason at first: a solver had to extend nine public entry points, preserve generic dictionaries, support local non-`Send` futures, traverse nested data sets deterministically, validate references before provider calls, preserve pixel-fragment structure, and keep every legacy convenience function unchanged. That is broad production work with several interacting contracts.
+
+The raw agent pass rate still overstated the effective difficulty. Many unsuccessful solutions completed almost the entire async resolver and writer design and failed only one typed-empty binary case. They correctly avoided calling the writer for an empty `Vec<u8>`, but delegated the value to the legacy serializer and emitted an empty `InlineBinary` field instead of the required VR-only object. A later candidate had the analogous defect for an empty ordinary PN or US value, rebuilding it as `"Value": []` instead of preserving legacy spelling. These failures were fair because the description explicitly covered empty binary output and exact no-bulk compatibility, but they were narrow tripwires rather than evidence that the agents could not build the core feature.
+
+The useful calibration signal was therefore the failure distribution, not only the pass count. Record how many feature tests each run passed, whether it reached runtime behavior, and whether failures share one root cause. If six agents pass twenty-one of twenty-two cases and all miss the same boundary value, describe the task as broad with a subtle compatibility edge. Do not credit that one assertion with all of the apparent difficulty.
+
+Strengthening coverage can also change calibration even when only `test.patch` changes. New compile-time public-surface checks or extra wrapper matrices may cause previously near-complete implementations to stop before behavioral tests. Before adopting reviewer suggestions, replay every legitimate passing patch and representative failing patches against the proposed test revision. Keep additions that close material false-positive paths, but avoid turning several medium-strength observations into a new wall of peripheral compile failures.
+
+For this task, the healthiest difficulty came from interactions that belong naturally to DICOM JSON bulk handling:
+
+- recursively mixing ordinary, sequence, primitive bulk, and encapsulated pixel values;
+- preserving the declared VR independently in provider requests and emitted JSON;
+- stopping on the first provider failure while maintaining tag and item order;
+- retaining exact ordinary serialization on calls that make no provider requests;
+- carrying a complete `AttributeSelector` through nested conversion failures;
+- accepting both OB and OW encapsulated Pixel Data without flattening fragments.
+
+These cases exercise design judgment across the feature. By contrast, an unstated interpretation of whitespace, an incidental trait requirement introduced by `assert_eq!`, or an output-validation policy inherited only from the reference makes the verifier stricter without making the engineering task better.
+
+The final calibration lesson is to keep a versioned evidence table. For each description and test-patch fingerprint, record legitimate passes, near-solves, compile failures, exact failing assertions, and the production scope of passing patches. Test-only revisions may preserve useful historical evidence, but they do not prove the new pass rate until the old patches are replayed or a fresh cohort is run.
