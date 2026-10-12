@@ -1,5 +1,7 @@
 # How to Calibrate a Hard but Solvable Task
 
+> **Rules changed on 2026-10-09.** The current targets are Nova 0/8 (at most 8 per version), Orion or Vega exactly 1/4, and average Nova sequence > 256K. The 40% ceiling and Terra-based targets below are retired. Read [olympus-v2-rules-and-calibration.md](olympus-v2-rules-and-calibration.md) first; the interaction-driven method below still applies.
+
 This guide extends the interaction-driven difficulty method in [agent-2.md](agent-2.md). It uses the transactional writable CSV task as a case study. Keep it outside the challenge package.
 
 The goal is not to make a named model fail through traps. The goal is to create a real upstream task whose public invariants require sustained repository reasoning. A healthy calibration lets a strong Terra Max run solve the task with substantial effort, while Terra High usually delivers a serious but incomplete implementation. Failure must come from missed behavior, not ambiguity, hidden implementation rules, broken tooling, or luck.
