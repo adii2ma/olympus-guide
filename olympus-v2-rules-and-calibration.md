@@ -77,6 +77,17 @@ Neither task got there by adding stated requirements. Strong models implement ev
 ### Keep going
 13. **Keep going between steps.** Iterate on checks as often as needed and refresh only the checks that are stale. FP Check, Auto Review, lock and submit belong to the operator unless told otherwise.
 
+### Lessons from later tasks (sqls, mirrorbits revert, rustfft)
+14. **Check the Orion pass for a false positive before accepting 1/4.** On a SQL language-server task, the only Orion pass silently broke behaviour that already worked (go-to-definition in plain queries the README promised to keep), and FP Check failed it.
+    - Before running Orion, add preservation tests for every existing behaviour the feature touches.
+    - Before accepting 1/4, probe the passing run locally for regressions the way the FP panel would.
+15. **Don't pin an order, timing or message wording the README doesn't state.** The reviewer reverted the submitted mirrorbits task over 2 unfair tests:
+    - one rejected a valid HTTPS-first check order;
+    - the other rejected an accurate error message that contained the requested path.
+
+    Accept every valid order and assert only outcomes. Before every sync, run a deliberately different but correct variant of the reference against the tests.
+16. **Local gpt-6.1-sol predicts Orion, not Nova.** On rustfft, local runs went 0–1/4, yet the first 2 platform Nova both passed. Run the first 2 Nova early, as soon as checks pass, before investing in Orion calibration.
+
 ## 4. Pitfalls
 
 **Server Errors:**
