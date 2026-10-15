@@ -59,6 +59,8 @@ Neither task got there by adding stated requirements. Strong models implement ev
 6. **Screen every known run patch against every candidate `test.patch` before syncing.** Include every platform run from every version, every local patch, the reference (×3) and bare base. Run them on 2 CPUs, uid 4242, `--network none`, like grading. On both tasks the screen predicted the platform re-eval verdicts exactly. Ship only when the projection says Orion 1/4 and Nova 0/N.
 7. **Make near-passers fail deterministically before any re-eval.** A run with all new tests passing but a FAIL verdict can flip to PASS when it is re-judged. Give it a test it genuinely fails, or don't re-eval.
 
+7a. **Check order after every sync (operator rule 2026-10-16).** If a check has failed even once on this task, run THAT check first, on its own (`checks run <key>`), after every sync. Only when it passes, run the other quality checks, then the combined prechecks, and Scope Gate last. Never open a sync with `run-all`, `run-quality` or Scope Gate. If the previously failed check fails again, fix it, re-screen and re-sync before you spend tokens on anything else.
+
 ### Write fair tests
 8. **Assert representation-free behaviour:** the link resolves to its URL, the id is used once, the text survives in the saved part, no request arrives. Never assert exact ids, internal layout, or a structure policy the repo doesn't model. Make hidden-test walkers fall back to the public XML/text for unknown enum variants; a `_ => {}` arm silently failed correct solvers.
 9. **If an evaluator flags a case as unfair (`agentBlameUnfair`), state that case in the README or drop it.** Don't argue. A single flag fails "Fair task" even when the pass rate is right.
