@@ -11,12 +11,20 @@ The lessons below come from the first two tasks that went all the way through V2
 | **Nova** | At least **8** runs, **0%** passing. Request it as `gemini_cli`; the platform stores it as `antigravity` (gemini-3.8-flash). |
 | **Nova cap** | At most **8 Nova runs per version**, since every extra run is another chance to break 0%. |
 | **Orion or Vega** | At least **4** runs in **one** strong pool, passing **more than 0% and at most 25%**, so exactly **1/4**. Orion is `codex_cli` with gpt-6.1-sol (6 tokens); Vega is `claude_code` with claude-opus-5-5 (8 tokens). Either pool satisfies the rule, and a 0/4 in the other pool doesn't block. |
-| **Long horizon** | The average Nova `sequenceLength` must be **> 256K**. Both tasks landed far above it (538K and 943K), so a genuinely multi-subsystem task clears it on its own. |
+| **Long horizon (Nova)** | The average Nova `sequenceLength` must be **> 256K**. Both tasks landed far above it (538K and 943K), so a genuinely multi-subsystem task clears it on its own. |
+| **Long horizon (Orion / Vega)** | *Added 2026-10-20.* The **passing** runs of the qualifying strong pool must also average **> 256K** (criterion `strongSequenceLength`). The first two tasks hit by it failed only this: alp's passing Orion used 76K and boss's 85K, while their Nova averaged ~300K. A task the strong model solves in a short, focused patch no longer qualifies. It must need many files, deep investigation and many steps, and you get there through real repository complexity, not a longer README. |
 | **Panel** | Also required: **Fair task** (no run flagged unfair, including any `agentBlameUnfair`), **no environment blockers**, cheat rate < 20%, **FP Check** pass and **Auto Review** pass. |
 | **Evaluators** | Nova or Orion. |
 | **Stale runs** | Runs from before the update (where "Nova" was codex gpt-5.6-luna) are stale for calibration. Re-gauge every task on the new pools. |
 
-**Rollout order that worked:** **2 Nova → 4 Orion → 6 Nova** (8 Nova total).
+**Local gate before every sync (operator rule 2026-10-20).** On every candidate iteration, run three checks on the VM, in this order:
+1. A local **Test Quality judge**: two independent Claude Opus 5.5 reviewers label every hidden test Prompt-stated, Repo-discoverable, Standard external semantics or Not fair, as the platform's verifyFairness does. Any Not fair label stops the gate.
+2. A local **Solution Quality judge**: completeness and code quality must both be Fully Met.
+3. Only then, **10 local Vega solvers** (Claude Code + claude-opus-5-5, README only, graded like the platform). They must pass **1–2 of 10**, with the passing runs averaging **> 256K** sequence length.
+
+The CLI refuses fresh runs unless the gate passed on exactly the synced README, test.patch and solution.patch. On its first try, the judge flagged a real ambiguity in alp: "first captured byte" can mean the positionally first byte or the earliest-captured one. Each judge costs about $1, so fix judge findings before you spend on the 10 solvers.
+
+**Rollout order that worked:** **2 Nova → 4 Orion → 6 Nova** (8 Nova total). Since 2026-10-20 the Orion pass must also be > 256K before the remaining Nova.
 - Two Nova runs first catch a Nova pass for 2 runs' worth of tokens instead of 8.
 - On **any** Nova pass, harden before running more Nova.
 
