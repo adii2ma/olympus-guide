@@ -33,6 +33,28 @@ The CLI refuses fresh runs unless the gate passed on exactly the synced README, 
 - Starting **any** fresh batch dismisses the re-eval offer.
 - A README or Dockerfile change makes every run stale and forces fresh runs plus DQ, prechecks, quality checks and Scope Gate.
 
+## 1b. New-task workflow (operator, 2026-10-20)
+
+Follow it end to end:
+  A. UNIQUE FIRST. While authoring the cheap candidate (PHASE 1–2), prove it is in scope and original BEFORE you invest in it. Sync the basic viability package, then make Scope Gate and the required prechecks pass, and do the plagiarism/public-overlap/duplicate-task review (upstream PRs, issues, forks, existing Olympus tasks). Prefer candidates that can become LONG-HORIZON: behaviour that spans several interacting subsystems of a large repository. Pick nothing a strong model can finish in one focused patch.
+  B. BUILD IT HARD AND LONG, LOCALLY. Only once the candidate is verified unique, expand that exact candidate into the full task (PHASE 3–4), designed from the start to be difficult and long-horizon: hidden interactions with existing behaviour, end-to-end flows across files and packages, real investigation. Keep the README under 400 words and DQ-clean. Complete everything locally first: the four-state Docker matrix, production checks and run-patch screens.
+  C. CALIBRATE LOCALLY WITH THE GATE, ON EVERY ITERATION. Run `~/olympus-localsolve/localgate.py --package <pkg> --batch <task>-<iteration>`. It runs the 2 Test Quality judges, then the Solution Quality judge, then the 10 local Vega (Claude Opus 5.5) solvers.
+     - Iterate (fix judge findings, harden, ease, lengthen) until the gate PASSES: judges clean, then 1–2 of 10 passing with the passing runs above 256K.
+     - The optional quick gauge (`localsolve.py --n 4`, gpt-6.1-sol, platform Orion's model) helps between gates.
+     - The environment is SHARED by all agents on this VM:
+       - Claude containers take VM-wide slots, so batches from different agents run side by side and wait automatically when the VM is full.
+       - Always use a fresh, task-prefixed batch name.
+       - Never stop, remove or touch another agent's `olx-*` containers or `runs/` directories.
+       - Never edit `~/olympus-localsolve/`.
+  D. ONLY THEN PLATFORM. Sync exactly the gated README, test.patch and solution.patch. Run checks in the operator order (previously failed check first, then the other quality checks, then prechecks, Scope Gate last). Then the staged rollout with `--local-batch <gate batch>`: 2 Nova → 4 Orion (1 pass above 256K) → 6 Nova. Then FP Check, then Auto Review, iterated to 3/3 on every dimension. Carry every open Auto Review finding into the next version: build its `wrongImpl` as a mutant and prove the tests kill it. Then READY_FOR_HUMAN_SUBMISSION. Never lock or submit.
+
+### Lessons from the long-horizon update
+
+16. (alp, boss: Orion/Vega long-horizon update, 2026-10-20) Both tasks reached Nova 0/8 and Orion 1/4 and then failed ONLY "Long horizon (Orion / Vega)": the passing Orion run used 76K and 85K, against the 256K the passes must average. Local Opus 5.5 is fast too: its runs took 10–26 min at 120K–235K, so a 1,300-line feature can still be short-horizon. Design for depth (investigation, cross-subsystem interactions, debugging), not just size.
+17. (alp) Hidden tests must build against ANY reasonable solver tree. 6 of 9 local Vega runs dropped `gopacket` from go.mod (they wrote their own pcap reader), and the new test helper imported gopacket, so `[setup failed]` failed them before a single assertion ran. On the platform that is an unfair failure. Keep test helpers self-sufficient: no dependency the solution may legitimately remove. The gate now fails on such builds.
+18. (alp) The local Test Quality judge flagged, on its first run, an ambiguity Auto Review later also hit: "the request's first captured byte" can mean the positionally first byte or the earliest-captured one. Treat judge findings as future Auto Review findings.
+19. (alp, boss) Auto Review findings don't disappear when you redesign. alp's lost-segment test accepted a nil output (so a parser that stops at the first TCP gap passed). boss never tested an `.lpk` whose internal Name differs from its filename, and its reference deleted hand-written entries marked `Prefer="True"`. Fix each finding in the new version.
+
 ## 2. How the two tasks actually got to 1/4 Orion
 
 Neither task got there by adding stated requirements. Strong models implement every sentence in the README. Both found **one hidden discriminator in pre-existing machinery that the natural feature design breaks**, and then tuned it with a single light README sentence.
