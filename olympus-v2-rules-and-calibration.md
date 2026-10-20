@@ -20,7 +20,7 @@ The lessons below come from the first two tasks that went all the way through V2
 **Local gate before every sync (operator rule 2026-10-20).** On every candidate iteration, run three checks on the VM, in this order:
 1. A local **Test Quality judge**: two independent Claude Opus 5.5 reviewers label every hidden test Prompt-stated, Repo-discoverable, Standard external semantics or Not fair, as the platform's verifyFairness does. Any Not fair label stops the gate.
 2. A local **Solution Quality judge**: completeness and code quality must both be Fully Met.
-3. Only then, **10 local Vega solvers** (Claude Code + claude-opus-5-5, README only, graded like the platform). They must pass **1–2 of 10**, with the passing runs averaging **> 256K** sequence length.
+3. Only then, **two rounds of 4 local Vega (Claude Code + claude-opus-5-5) + 4 local Orion (Codex + gpt-6.1-sol)**, README only, graded like the platform. A pool that passes 2+ of its first 4 is too easy and gets no round 2. At least one pool must reach **1–2 of 8**, with its passing runs averaging **> 256K** sequence length. (The first version ran 10 parallel Opus runs per gate; with several agents gating at once that exhausted the operator's Claude 5-hour limit within hours, so it was staged and capped at 6 Claude containers VM-wide.)
 
 The CLI refuses fresh runs unless the gate passed on exactly the synced README, test.patch and solution.patch. On its first try, the judge flagged a real ambiguity in alp: "first captured byte" can mean the positionally first byte or the earliest-captured one. Each judge costs about $1, so fix judge findings before you spend on the 10 solvers.
 
@@ -38,8 +38,8 @@ The CLI refuses fresh runs unless the gate passed on exactly the synced README, 
 Follow it end to end:
   A. UNIQUE FIRST. While authoring the cheap candidate (PHASE 1–2), prove it is in scope and original BEFORE you invest in it. Sync the basic viability package, then make Scope Gate and the required prechecks pass, and do the plagiarism/public-overlap/duplicate-task review (upstream PRs, issues, forks, existing Olympus tasks). Prefer candidates that can become LONG-HORIZON: behaviour that spans several interacting subsystems of a large repository. Pick nothing a strong model can finish in one focused patch.
   B. BUILD IT HARD AND LONG, LOCALLY. Only once the candidate is verified unique, expand that exact candidate into the full task (PHASE 3–4), designed from the start to be difficult and long-horizon: hidden interactions with existing behaviour, end-to-end flows across files and packages, real investigation. Keep the README under 400 words and DQ-clean. Complete everything locally first: the four-state Docker matrix, production checks and run-patch screens.
-  C. CALIBRATE LOCALLY WITH THE GATE, ON EVERY ITERATION. Run `~/olympus-localsolve/localgate.py --package <pkg> --batch <task>-<iteration>`. It runs the 2 Test Quality judges, then the Solution Quality judge, then the 10 local Vega (Claude Opus 5.5) solvers.
-     - Iterate (fix judge findings, harden, ease, lengthen) until the gate PASSES: judges clean, then 1–2 of 10 passing with the passing runs above 256K.
+  C. CALIBRATE LOCALLY WITH THE GATE, ON EVERY ITERATION. Run `~/olympus-localsolve/localgate.py --package <pkg> --batch <task>-<iteration>`. It runs the 2 Test Quality judges, then the Solution Quality judge, then 2 rounds of 4 local Vega + 4 local Orion, stopping a pool early once it passes 2+ of 4.
+     - Iterate (fix judge findings, harden, ease, lengthen) until the gate PASSES: judges clean, then a Vega or Orion pool at 1–2 of 8 passes with the passing runs above 256K.
      - The optional quick gauge (`localsolve.py --n 4`, gpt-6.1-sol, platform Orion's model) helps between gates.
      - The environment is SHARED by all agents on this VM:
        - Claude containers take VM-wide slots, so batches from different agents run side by side and wait automatically when the VM is full.
