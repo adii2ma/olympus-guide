@@ -1,6 +1,6 @@
 # How to Calibrate a Hard but Solvable Task
 
-> **Rules changed on 2026-10-09.** The current targets are Nova 0/8 (at most 8 per version), Orion or Vega exactly 1/4, and average Nova sequence > 256K. The 40% ceiling and Terra-based targets below are retired. Read [olympus-v2-rules-and-calibration.md](olympus-v2-rules-and-calibration.md) first; the interaction-driven method below still applies.
+> **Rules changed on 2026-10-21.** One rollout of 4 Nova + 4 Orion + 4 Vega per version, with exactly 1 of the 12 passing (one Orion or one Vega run), Nova 0/4, and average Nova sequence > 400K; no Orion/Vega sequence rule. The 40% ceiling and Terra-based targets below are retired. Read [olympus-v2-rules-and-calibration.md](olympus-v2-rules-and-calibration.md) first; the interaction-driven method below still applies.
 
 This guide extends the interaction-driven difficulty method in [agent-2.md](agent-2.md). It uses the transactional writable CSV task as a case study. Keep it outside the challenge package.
 

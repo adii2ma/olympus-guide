@@ -1,56 +1,45 @@
 # Olympus V2 Rules and Calibration (October 2026 update)
 
-Read this before the older guides. The Olympus update announced around 2026-10-09 replaced the pass-rate rules. Wherever another file in this repo (or an older handbook) says "1–4 passes out of 10", "40% ceiling", "4+4+2 cohort", "Terra", or "10-run archive", that rule is **retired**. Follow this file instead.
+Read this before the older guides. The Olympus updates of 2026-10-09 and 2026-10-21 replaced the pass-rate rules; the current rules are in section 1. Wherever another file in this repo (or an older handbook) says "1–4 passes out of 10", "40% ceiling", "4+4+2 cohort", "Terra", or "10-run archive", that rule is **retired**. Follow this file instead.
 
 The lessons below come from the first two tasks that went all the way through V2 and got submitted: a Rust OOXML reader/writer task (docx-rs) and a Go mirror-health-check task (mirrorbits). Both ended at **Nova 0/8, Orion 1/4, FP Check pass, Auto Review pass**. Their full case studies are in [`lessons/`](lessons/).
 
-## 1. The rules
+## 1. The rules (platform update 2026-10-21)
 
 | Requirement | Rule |
 |---|---|
-| **Nova** | At least **8** runs, **0%** passing. Request it as `gemini_cli`; the platform stores it as `antigravity` (gemini-3.8-flash). |
-| **Nova cap** | At most **8 Nova runs per version**, since every extra run is another chance to break 0%. |
-| **Orion or Vega** | At least **4** runs in **one** strong pool, passing **more than 0% and at most 25%**, so exactly **1/4**. Orion is `codex_cli` with gpt-6.1-sol (6 tokens); Vega is `claude_code` with claude-opus-5-5 (8 tokens). Either pool satisfies the rule, and a 0/4 in the other pool doesn't block. |
-| **Long horizon (Nova)** | The average Nova `sequenceLength` must be **> 256K**. Both tasks landed far above it (538K and 943K), so a genuinely multi-subsystem task clears it on its own. |
-| **Long horizon (Orion / Vega)** | *Added 2026-10-20.* The **passing** runs of the qualifying strong pool must also average **> 256K** (criterion `strongSequenceLength`). The first two tasks hit by it failed only this: alp's passing Orion used 76K and boss's 85K, while their Nova averaged ~300K. A task the strong model solves in a short, focused patch no longer qualifies. It must need many files, deep investigation and many steps, and you get there through real repository complexity, not a longer README. |
-| **Panel** | Also required: **Fair task** (no run flagged unfair, including any `agentBlameUnfair`), **no environment blockers**, cheat rate < 20%, **FP Check** pass and **Auto Review** pass. |
-| **Evaluators** | Nova or Orion. |
-| **Stale runs** | Runs from before the update (where "Nova" was codex gpt-5.6-luna) are stale for calibration. Re-gauge every task on the new pools. |
+| **Rollout** | **One rollout of 12 runs per version: 4 Nova + 4 Orion + 4 Vega**, launched together (`olympus runs run <id> --preset full`; the server's full preset, evaluated by Orion). At most 4 runs per model per version. Nova is `gemini_cli`, stored as `antigravity` (gemini-3.8-flash); Orion is `codex_cli` with gpt-6.1-sol; Vega is `claude_code` with claude-opus-5-5. |
+| **Solved by one model only** | **Exactly 1 of the 12 runs passes**, and it is an Orion or a Vega run: Orion 1/4 with Vega 0/4, or Vega 1/4 with Orion 0/4. Nova 0/4. Platform criterion `passStructure`: "Exactly one of Nova, Orion or Vega solves it, more than 0% and at most 25% of the time; the other two stay at 0%." |
+| **Long horizon (Nova)** | The Nova runs must average **> 400K** `sequenceLength` (was 256K until 2026-10-21). kira's first Nova run on the new rules used 514K. |
+| **No Orion/Vega sequence rule** | The 2026-10-20 "Long horizon (Orion / Vega)" criterion (passing runs > 256K) was **retired on 2026-10-21**. Never lengthen a task for Orion/Vega. |
+| **Panel** | Also required: **Fair task**, **Solvable**, **Rollouts on every model** (`codenameCoverage`), **No cheating** (< 20%), **No environment blockers**, **FP Check** pass and **Auto Review** pass. |
+| **Stale runs** | Runs from before an update are stale for calibration. |
 
-**Local gate before every sync (operator rule 2026-10-20).** On every candidate iteration, run three checks on the VM, in this order:
+**Local gate on every iteration (`~/olympus-localsolve/localgate.py`, v3).** It runs, in order:
 1. A local **Test Quality judge**: two independent Claude Opus 5.5 reviewers label every hidden test Prompt-stated, Repo-discoverable, Standard external semantics or Not fair, as the platform's verifyFairness does. Any Not fair label stops the gate.
 2. A local **Solution Quality judge**: completeness and code quality must both be Fully Met.
-3. Only then, **two rounds of 4 local Vega (Claude Code + claude-opus-5-5) + 4 local Orion (Codex + gpt-6.1-sol)**, README only, graded like the platform. A pool that passes 2+ of its first 4 is too easy and gets no round 2. At least one pool must reach **1–2 of 8**, with its passing runs averaging **> 256K** sequence length. (The first version ran 10 parallel Opus runs per gate; with several agents gating at once that exhausted the operator's Claude 5-hour limit within hours, so it was staged and capped at 6 Claude containers VM-wide.)
+3. Only then, **4 local Vega (Claude Code + claude-opus-5-5) + 4 local Orion (Codex + gpt-6.1-sol)** in one round, README only, graded like the platform. **PASS = all 8 graded and exactly 1 of the 8 passes**, mirroring the platform's one-pass-in-12 rule.
 
-The CLI refuses fresh runs unless the gate passed on exactly the synced README, test.patch and solution.patch. On its first try, the judge flagged a real ambiguity in alp: "first captured byte" can mean the positionally first byte or the earliest-captured one. Each judge costs about $1, so fix judge findings before you spend on the 10 solvers.
+The CLI refuses a platform rollout unless the gate passed on exactly the synced README, test.patch and solution.patch. A local run whose agent never got a model response (unsupported model, auth, quota) is a `HARNESS_ERROR`, never a fail. Learned the hard way: from 2026-10-20 the VM's Codex login silently rejected gpt-6.1-sol, and a whole day of local Orion "0/4" results were fake. Each judge costs about $1, so fix judge findings before you spend on the 8 solvers. Claude containers are capped at 6 VM-wide, to protect the operator's usage limit.
 
-**Rollout order that worked:** **2 Nova → 4 Orion → 6 Nova** (8 Nova total). Since 2026-10-20 the Orion pass must also be > 256K before the remaining Nova.
-- Two Nova runs first catch a Nova pass for 2 runs' worth of tokens instead of 8.
-- On **any** Nova pass, harden before running more Nova.
+**Order on every new iteration:** local gate → sync → checks in the operator order (previously failed check first, other quality checks, prechecks, Scope Gate last) → **Auto Review first** (`olympus checks auto-review <id> --pre-rollout`; every dimension at least 2/3, aim for 3/3) → the full 12-run rollout → FP Check → final Auto Review to 3/3.
+- If the rollout's pass structure fails (a Nova pass, more than one pass, or none), the version gets no more runs. Fix the task, gate it, and sync a new version.
 
 **Re-eval:**
 - When only `test.patch` and/or `solution.patch` change, re-evaluate the existing runs instead of starting fresh ones. It costs about 30% of a fresh batch and keeps the trajectories fixed, so the result is predictable.
 - Starting **any** fresh batch dismisses the re-eval offer.
 - A README or Dockerfile change makes every run stale and forces fresh runs plus DQ, prechecks, quality checks and Scope Gate.
 
-## 1b. New-task workflow (operator, 2026-10-20)
+## 1b. New-task workflow (operator, 2026-10-21)
 
-Follow it end to end:
-  A. UNIQUE FIRST. While authoring the cheap candidate (PHASE 1–2), prove it is in scope and original BEFORE you invest in it. Sync the basic viability package, then make Scope Gate and the required prechecks pass, and do the plagiarism/public-overlap/duplicate-task review (upstream PRs, issues, forks, existing Olympus tasks). Prefer candidates that can become LONG-HORIZON: behaviour that spans several interacting subsystems of a large repository. Pick nothing a strong model can finish in one focused patch.
-  B. BUILD IT HARD AND LONG, LOCALLY. Only once the candidate is verified unique, expand that exact candidate into the full task (PHASE 3–4), designed from the start to be difficult and long-horizon: hidden interactions with existing behaviour, end-to-end flows across files and packages, real investigation. Keep the README under 400 words and DQ-clean. Complete everything locally first: the four-state Docker matrix, production checks and run-patch screens.
-  C. CALIBRATE LOCALLY WITH THE GATE, ON EVERY ITERATION. Run `~/olympus-localsolve/localgate.py --package <pkg> --batch <task>-<iteration>`. It runs the 2 Test Quality judges, then the Solution Quality judge, then 2 rounds of 4 local Vega + 4 local Orion, stopping a pool early once it passes 2+ of 4.
-     - Iterate (fix judge findings, harden, ease, lengthen) until the gate PASSES: judges clean, then a Vega or Orion pool at 1–2 of 8 passes with the passing runs above 256K.
-     - The optional quick gauge (`localsolve.py --n 4`, gpt-6.1-sol, platform Orion's model) helps between gates.
-     - The environment is SHARED by all agents on this VM:
-       - Claude containers take VM-wide slots, so batches from different agents run side by side and wait automatically when the VM is full.
-       - Always use a fresh, task-prefixed batch name.
-       - Never stop, remove or touch another agent's `olx-*` containers or `runs/` directories.
-       - Never edit `~/olympus-localsolve/`.
-  D. ONLY THEN PLATFORM. Sync exactly the gated README, test.patch and solution.patch. Run checks in the operator order (previously failed check first, then the other quality checks, then prechecks, Scope Gate last). Then the staged rollout with `--local-batch <gate batch>`: 2 Nova → 4 Orion (1 pass above 256K) → 6 Nova. Then FP Check, then Auto Review, iterated to 3/3 on every dimension. Carry every open Auto Review finding into the next version: build its `wrongImpl` as a mutant and prove the tests kill it. Then READY_FOR_HUMAN_SUBMISSION. Never lock or submit.
+  A. UNIQUE FIRST. While authoring the cheap candidate, prove it is in scope and original BEFORE you invest in it: Scope Gate, the required prechecks, and the plagiarism/public-overlap/duplicate-task review (upstream PRs, issues, forks, existing Olympus tasks). Prefer candidates whose solving spans several interacting subsystems of a large repository, so Nova runs long (> 400K).
+  B. BUILD IT HARD, LOCALLY. Expand that exact candidate into the full task: hidden interactions with existing behaviour, end-to-end flows, real investigation. Keep the README under 400 words and DQ-clean. Complete the four-state Docker matrix, production checks and run-patch screens locally.
+  C. CALIBRATE LOCALLY WITH THE GATE, ON EVERY ITERATION, until exactly 1 of the 8 local runs passes. The environment is shared by all agents on the VM: use task-prefixed batch names, never touch another agent's `olx-*` containers or `runs/`, and never edit `~/olympus-localsolve/`.
+  D. ONLY THEN PLATFORM: sync, checks, **Auto Review first**, the full rollout, FP Check, final Auto Review to 3/3. Carry every open Auto Review finding into the next version: build its `wrongImpl` as a mutant and prove the tests kill it. Then READY_FOR_HUMAN_SUBMISSION. Never lock or submit.
 
-### Lessons from the long-horizon update
+### Lessons from the 2026-10-20 updates
 
-16. (alp, boss: Orion/Vega long-horizon update, 2026-10-20) Both tasks reached Nova 0/8 and Orion 1/4 and then failed ONLY "Long horizon (Orion / Vega)": the passing Orion run used 76K and 85K, against the 256K the passes must average. Local Opus 5.5 is fast too: its runs took 10–26 min at 120K–235K, so a 1,300-line feature can still be short-horizon. Design for depth (investigation, cross-subsystem interactions, debugging), not just size.
+16. (alp, boss, 2026-10-20) Both tasks reached Nova 0/8 and Orion 1/4 and then failed ONLY the Orion/Vega long-horizon criterion (passing Orion runs at 76K and 85K, against > 256K). That criterion was retired on 2026-10-21. Don't lengthen tasks for Orion/Vega; only Nova must average > 400K.
 17. (alp) Hidden tests must build against ANY reasonable solver tree. 6 of 9 local Vega runs dropped `gopacket` from go.mod (they wrote their own pcap reader), and the new test helper imported gopacket, so `[setup failed]` failed them before a single assertion ran. On the platform that is an unfair failure. Keep test helpers self-sufficient: no dependency the solution may legitimately remove. The gate now fails on such builds.
 18. (alp) The local Test Quality judge flagged, on its first run, an ambiguity Auto Review later also hit: "the request's first captured byte" can mean the positionally first byte or the earliest-captured one. Treat judge findings as future Auto Review findings.
 19. (alp, boss) Auto Review findings don't disappear when you redesign. alp's lost-segment test accepted a nil output (so a parser that stops at the first TCP gap passed). boss never tested an `.lpk` whose internal Name differs from its filename, and its reference deleted hand-written entries marked `Prefer="True"`. Fix each finding in the new version.
